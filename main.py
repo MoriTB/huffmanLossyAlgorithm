@@ -1,5 +1,6 @@
 import numpy as np
 from PIL import Image
+from scipy.fftpack import fft, dct
 
 
 def rgb2ycbcr(im):
@@ -44,10 +45,10 @@ def blocking(im_np, w, h):
         print(real_h)
         print(not_real_h)
         difference = 8 - (h % 8)  # making the difference to append the black cells to full the array.
-        print(difference) # it has to make three row with 0 0 0 in each channel.
+        print(difference)  # it has to make three row with 0 0 0 in each channel.
         k = 0
-        #an_array2 = [[0 for i in range(difference)] for j in range(w)]
-        an_array2 = np.full((difference,w,3), 0)
+        # an_array2 = [[0 for i in range(difference)] for j in range(w)]
+        an_array2 = np.full((difference, w, 3), 0)
         im_np_full = np.append(im_np_full, an_array2, 0)
         """""
         print("before:")
@@ -65,14 +66,14 @@ def blocking(im_np, w, h):
 
     block_y = [[0 for i in range(8)] for j in range(8)]
     print(block_y)
-    blocks_yy = np.full((real_h,real_w,8,8), 0)
+    blocks_yy = np.full((real_h, real_w, 8, 8), 0)
     block_cb = [[0 for i in range(8)] for j in range(8)]
     block_cr = [[0 for i in range(8)] for j in range(8)]
     blocks_cb = np.full((real_h, real_w, 8, 8), 0)
     blocks_cr = np.full((real_h, real_w, 8, 8), 0)
 
-    for i in range(0,real_h):
-        for j in range(0,real_w):
+    for i in range(0, real_h):
+        for j in range(0, real_w):
             for k in range(0, 8):
                 for f in range(0, 8):
                     # print(type(im_np[k + i * 8 ][f + j * 8][0]))
@@ -108,12 +109,58 @@ def blocking(im_np, w, h):
     print(blocks_yy[real_h-1][real_w-1])
     # print(real_h,real_w)
     """""
-    print("luminance maintenance blocks>>>>")
-    print(blocks_yy[real_h-1][real_w-1])
-    print("chrominance blue section maintenance blocks>>>>")
-    print(blocks_cb[real_h - 1][real_w - 1])
-    print("chrominance red section maintenance blocks>>>>")
-    print(blocks_cr[real_h - 1][real_w - 1])
+    # print("luminance maintenance blocks>>>>")
+    # print(blocks_yy[real_h - 1][real_w - 1])
+    # print("chrominance blue section maintenance blocks>>>>")
+    # print(blocks_cb[real_h - 1][real_w - 1])
+    # print("chrominance red section maintenance blocks>>>>")
+    # print(blocks_cr[real_h - 1][real_w - 1])
+    #print("before dct-ii>>>>> ")
+    #print(blocks_yy[0][0])
+    dct_blocks_cb = np.full((real_h, real_w, 8, 8), 0)
+    dct_blocks_cr = np.full((real_h, real_w, 8, 8), 0)
+    dct_blocks_yy = np.full((real_h, real_w, 8, 8), 0)
+
+    for i in range(0, real_h):
+        for j in range(0, real_w):
+            dct_blocks_yy[i][j] = dct(blocks_yy[i][j], 2)
+            dct_blocks_cb[i][j] = dct(blocks_cb[i][j], 2)
+            dct_blocks_cr[i][j] = dct(blocks_cr[i][j], 2)
+
+    #print("after dct-ii>>>>> ")
+    #print(dct_blocks_yy[0][0])
+
+    #########################################################
+    quantizeTable_luminance = [[16, 11, 10, 16, 24, 40, 51, 61],
+                               [12, 12, 14, 19, 26, 58, 60, 55],
+                               [14, 13, 16, 24, 40, 57, 69, 56],
+                               [14, 17, 22, 29, 51, 87, 80, 62],
+                               [18, 22, 37, 56, 68, 109, 103, 77],
+                               [24, 35, 55, 64, 81, 104, 113, 92],
+                               [49, 64, 78, 87, 103, 121, 120, 101],
+                               [72, 92, 95, 98, 112, 100, 103, 99]]
+    quantizeTable_chrominance = [[17, 18, 24, 47, 99, 99, 99, 99],
+                                 [18, 21, 26, 66, 99, 99, 99, 99],
+                                 [24, 26, 56, 99, 99, 99, 99, 99],
+                                 [47, 66, 99, 99, 99, 99, 99, 99],
+                                 [99, 99, 99, 99, 99, 99, 99, 99],
+                                 [99, 99, 99, 99, 99, 99, 99, 99],
+                                 [99, 99, 99, 99, 99, 99, 99, 99],
+                                 [99, 99, 99, 99, 99, 99, 99, 99]]
+    quantized_dct_blocks_cb = np.full((real_h, real_w, 8, 8), 0)
+    quantized_dct_blocks_cr = np.full((real_h, real_w, 8, 8), 0)
+    quantized_dct_blocks_yy = np.full((real_h, real_w, 8, 8), 0)
+    for i in range(0, real_h):
+        for j in range(0, real_w):
+            for ii in range(0, 8):
+                for jj in range(0, 8):
+                    quantized_dct_blocks_yy[i][j][ii][jj] = round(dct_blocks_yy[i][j][ii][jj] / quantizeTable_luminance[ii][jj])
+                    quantized_dct_blocks_cb[i][j][ii][jj] = round(dct_blocks_cb[i][j][ii][jj] / quantizeTable_chrominance[ii][jj])
+                    quantized_dct_blocks_cr[i][j][ii][jj] = round(dct_blocks_cr[i][j][ii][jj] / quantizeTable_chrominance[ii][jj])
+    print("before quantization.>>>>> ")
+    print(dct_blocks_yy[0][0])
+    print("after quantization.>>>>> ")
+    print(quantized_dct_blocks_yy[0][0])
 
 
 if __name__ == '__main__':
@@ -125,8 +172,7 @@ if __name__ == '__main__':
     im_np = np.asarray(im)
     im_ycbcr = rgb2ycbcr(im_np)
     chromaSubFourTwo(im_ycbcr, w, h)
-    print(im_ycbcr[0][0][1],im_ycbcr[0][1][1])
-    im_ycbcr_copy = im_ycbcr
+    print(im_ycbcr[0][0][1], im_ycbcr[0][1][1])
     print("top after  ", im_ycbcr[240][4])
     print("bottom after ", im_ycbcr[241][4])
     print(blocking(im_ycbcr, w, h))
